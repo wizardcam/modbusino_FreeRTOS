@@ -9,6 +9,7 @@
  */
 
 #include <inttypes.h>
+#include "FreeRTOS.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
@@ -118,13 +119,14 @@ static uint8_t response_exception(uint8_t slave, uint8_t function,
 
 static void flush(void)
 {
+    const TickType_t xDelay = 3 / portTICK_PERIOD_MS;
     uint8_t i = 0;
 
     /* Wait a moment to receive the remaining garbage but avoid getting stuck
      * because the line is saturated */
     while (Serial.available() && i++ < 10) {
         Serial.flush();
-        delay(3);
+        vTaskDelay(xDelay);
     }
 }
 
@@ -135,6 +137,7 @@ static int receive(uint8_t *req, uint8_t _slave)
     uint8_t req_index;
     uint8_t step;
     uint8_t function;
+    const TickType_t xDelay = 1 / portTICK_PERIOD_MS;
 
     /* We need to analyse the message step by step.  At the first step, we want
      * to reach the function code because all packets contain this
@@ -155,7 +158,7 @@ static int receive(uint8_t *req, uint8_t _slave)
                     /* Too late, bye */
                     return -1 - MODBUS_INFORMATIVE_RX_TIMEOUT;
                 }
-                delay(1);
+                delay(xDelay);
             }
         }
 
