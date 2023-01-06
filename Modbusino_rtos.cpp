@@ -17,7 +17,7 @@
 #include "WProgram.h"
 #include <pins_arduino.h>
 #endif
-#include "Modbusino_rtos.h"
+#include "Modbusino_RTOS.h"
 
 #define _MODBUS_RTU_SLAVE 0
 #define _MODBUS_RTU_FUNCTION 1
