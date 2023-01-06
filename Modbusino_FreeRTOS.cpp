@@ -17,7 +17,7 @@
 #include "WProgram.h"
 #include <pins_arduino.h>
 #endif
-#include "Modbusino_RTOS.h"
+#include "Modbusino_FreeRTOS.h"
 
 #define _MODBUS_RTU_SLAVE 0
 #define _MODBUS_RTU_FUNCTION 1
@@ -34,7 +34,11 @@ segfault for longer ADU */
 #define _FC_READ_HOLDING_REGISTERS 0x03
 #define _FC_WRITE_MULTIPLE_REGISTERS 0x10
 
+#define _MIN_REG_NUMBER 7
+
 enum { _STEP_FUNCTION = 0x01, _STEP_META, _STEP_DATA };
+
+uint16_t req_counter = 0;
 
 static uint16_t crc16(uint8_t *req, uint8_t req_length)
 {
@@ -158,7 +162,7 @@ static int receive(uint8_t *req, uint8_t _slave)
                     /* Too late, bye */
                     return -1 - MODBUS_INFORMATIVE_RX_TIMEOUT;
                 }
-                delay(xDelay);
+                vTaskDelay(xDelay);
             }
         }
 
@@ -255,6 +259,16 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
     } else {
         req_length -= _MODBUS_RTU_CHECKSUM_LENGTH;
 
+        uint32_t TimeNow = millis();
+        // Custom modbus info write to first registers.
+        tab_reg[0] = (TimeNow >> 16) & 0x0000FFFF; //HI
+        tab_reg[1] = TimeNow & 0x0000FFFF; // LOW
+        tab_reg[2] = req_counter += 1;
+        tab_reg[3] = _slave;
+        tab_reg[4] = req[_MODBUS_RTU_FUNCTION];
+        tab_reg[5] = address;
+        tab_reg[6] = nb;
+
         if (function == _FC_READ_HOLDING_REGISTERS) {
             uint16_t i;
 
@@ -287,6 +301,9 @@ int ModbusinoSlave::loop(uint16_t *tab_reg, uint16_t nb_reg)
 {
     int rc = 0;
     uint8_t req[_MODBUSINO_RTU_MAX_ADU_LENGTH];
+    if (nb_reg < _MIN_REG_NUMBER) {
+        return -3;
+    }
 
     if (Serial.available()) {
         rc = receive(req, _slave);
@@ -299,6 +316,7 @@ int ModbusinoSlave::loop(uint16_t *tab_reg, uint16_t nb_reg)
        0 if a slave filtering has occured,
        -1 if an undefined error has occured,
        -2 for MODBUS_EXCEPTION_ILLEGAL_FUNCTION
+       -3 register number to small, minimum _MIN_REG_NUMBER
        etc */
     return rc;
 }

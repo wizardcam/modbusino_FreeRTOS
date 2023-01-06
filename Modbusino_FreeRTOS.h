@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef Modbusino_h_RTOS
-#define Modbusino_h_RTOS
+#ifndef Modbusino_h_FreeRTOS
+#define Modbusino_h_FreeRTOS
 
 #include <inttypes.h>
 #if defined(ARDUINO) && ARDUINO >= 100
