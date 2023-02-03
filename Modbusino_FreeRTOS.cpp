@@ -9,7 +9,6 @@
  */
 
 #include <inttypes.h>
-#include "FreeRTOS.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
@@ -18,6 +17,8 @@
 #include <pins_arduino.h>
 #endif
 #include "Modbusino_FreeRTOS.h"
+#include "modbusregisters.h"
+
 
 #define _MODBUS_RTU_SLAVE 0
 #define _MODBUS_RTU_FUNCTION 1
@@ -261,13 +262,14 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
 
         uint32_t TimeNow = millis();
         // Custom modbus info write to first registers.
-        tab_reg[0] = (TimeNow >> 16) & 0x0000FFFF; //HI
-        tab_reg[1] = TimeNow & 0x0000FFFF; // LOW
-        tab_reg[2] = req_counter += 1;
-        tab_reg[3] = _slave;
-        tab_reg[4] = req[_MODBUS_RTU_FUNCTION];
-        tab_reg[5] = address;
-        tab_reg[6] = nb;
+        tab_reg[_REQ_TIMESTAMP1] = (TimeNow >> 16) & 0x0000FFFF; // HI
+        tab_reg[_REQ_TIMESTAMP2] = TimeNow & 0x0000FFFF;         // LOW
+        tab_reg[_REQ_COUNTER] = req_counter += 1;
+        tab_reg[_EVENT_FLAGS] = 0;
+        tab_reg[_SLAVE_ID] = _slave;
+        tab_reg[_MODBUS_FUNCTION] = req[_MODBUS_RTU_FUNCTION];
+        tab_reg[_REGISTER_ADRESS] = address;
+        tab_reg[_REGISTER_NUMBER] = nb;
 
         if (function == _FC_READ_HOLDING_REGISTERS) {
             uint16_t i;
@@ -277,6 +279,9 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
             for (i = address; i < address + nb; i++) {
                 rsp[rsp_length++] = tab_reg[i] >> 8;
                 rsp[rsp_length++] = tab_reg[i] & 0xFF;
+            }
+            if (i == _EVENT_FLAGS) {
+                tab_reg[_EVENT_FLAGS] = 0;
             }
         } else {
             uint16_t i, j;

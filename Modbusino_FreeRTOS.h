@@ -11,6 +11,7 @@
 #ifndef Modbusino_h_FreeRTOS
 #define Modbusino_h_FreeRTOS
 
+#include "STM32FreeRTOS.h"
 #include <inttypes.h>
 #if defined(ARDUINO) && ARDUINO >= 100
   #include "Arduino.h"
