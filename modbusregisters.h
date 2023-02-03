@@ -36,4 +36,4 @@ extern uint16_t tab_reg[];
 #define _TEMP_TIMESTAMP (_TEMP_REG_START) // 32bit
 #define _TEMPERATURE (_TEMP_REG_START + 2)
 #define _HUMIDITY (_TEMP_REG_START + 3)
-#define _LASER_REG_END (_TEMP_REG_START + 3)
+#define _TEMP_REG_END (_TEMP_REG_START + 3)

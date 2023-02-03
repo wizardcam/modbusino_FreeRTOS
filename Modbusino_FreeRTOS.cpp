@@ -265,7 +265,6 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
         tab_reg[_REQ_TIMESTAMP1] = (TimeNow >> 16) & 0x0000FFFF; // HI
         tab_reg[_REQ_TIMESTAMP2] = TimeNow & 0x0000FFFF;         // LOW
         tab_reg[_REQ_COUNTER] = req_counter += 1;
-        tab_reg[_EVENT_FLAGS] = 0;
         tab_reg[_SLAVE_ID] = _slave;
         tab_reg[_MODBUS_FUNCTION] = req[_MODBUS_RTU_FUNCTION];
         tab_reg[_REGISTER_ADRESS] = address;
@@ -279,9 +278,10 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
             for (i = address; i < address + nb; i++) {
                 rsp[rsp_length++] = tab_reg[i] >> 8;
                 rsp[rsp_length++] = tab_reg[i] & 0xFF;
-            }
-            if (i == _EVENT_FLAGS) {
-                tab_reg[_EVENT_FLAGS] = 0;
+                /* reset event flag register after it is read */
+                if (i == _EVENT_FLAGS) {
+                    tab_reg[_EVENT_FLAGS] = 0;
+                }
             }
         } else {
             uint16_t i, j;
