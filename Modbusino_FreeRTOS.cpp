@@ -17,9 +17,9 @@
 #include <pins_arduino.h>
 #endif
 #include "Modbusino_FreeRTOS.h"
-#include "modbusregisters.h"
+#include "peripheral_registers.h"
 
-
+#define delay(ms) vTaskDelay(ms)
 #define _MODBUS_RTU_SLAVE 0
 #define _MODBUS_RTU_FUNCTION 1
 #define _MODBUS_RTU_PRESET_REQ_LENGTH 6
@@ -131,7 +131,7 @@ static void flush(void)
      * because the line is saturated */
     while (Serial.available() && i++ < 10) {
         Serial.flush();
-        vTaskDelay(xDelay);
+        delay(xDelay);
     }
 }
 
@@ -163,7 +163,7 @@ static int receive(uint8_t *req, uint8_t _slave)
                     /* Too late, bye */
                     return -1 - MODBUS_INFORMATIVE_RX_TIMEOUT;
                 }
-                vTaskDelay(xDelay);
+                delay(xDelay);
             }
         }
 
@@ -262,6 +262,7 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
 
         uint32_t TimeNow = millis();
         // Custom modbus info write to first registers.
+        taskENTER_CRITICAL();
         tab_reg[_REQ_TIMESTAMP1] = (TimeNow >> 16) & 0x0000FFFF; // HI
         tab_reg[_REQ_TIMESTAMP2] = TimeNow & 0x0000FFFF;         // LOW
         tab_reg[_REQ_COUNTER] = req_counter += 1;
@@ -269,6 +270,7 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
         tab_reg[_MODBUS_FUNCTION] = req[_MODBUS_RTU_FUNCTION];
         tab_reg[_REGISTER_ADRESS] = address;
         tab_reg[_REGISTER_NUMBER] = nb;
+        taskEXIT_CRITICAL();
 
         if (function == _FC_READ_HOLDING_REGISTERS) {
             uint16_t i;
@@ -276,8 +278,10 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
             rsp_length = build_response_basis(slave, function, rsp);
             rsp[rsp_length++] = nb << 1;
             for (i = address; i < address + nb; i++) {
+                taskENTER_CRITICAL();
                 rsp[rsp_length++] = tab_reg[i] >> 8;
                 rsp[rsp_length++] = tab_reg[i] & 0xFF;
+                taskEXIT_CRITICAL();
                 /* reset event flag register after it is read */
                 if (i == _EVENT_FLAGS) {
                     tab_reg[_EVENT_FLAGS] = 0;
@@ -286,11 +290,13 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
         } else {
             uint16_t i, j;
 
+            taskENTER_CRITICAL();
             for (i = address, j = 6; i < address + nb; i++, j += 2) {
                 /* 6 and 7 = first value */
                 tab_reg[i] = (req[_MODBUS_RTU_FUNCTION + j] << 8)
                              + req[_MODBUS_RTU_FUNCTION + j + 1];
             }
+            taskEXIT_CRITICAL();
 
             rsp_length = build_response_basis(slave, function, rsp);
             /* 4 to copy the address (2) and the no. of registers */
@@ -298,7 +304,6 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
             rsp_length += 4;
         }
     }
-
     send_msg(rsp, rsp_length);
 }
 

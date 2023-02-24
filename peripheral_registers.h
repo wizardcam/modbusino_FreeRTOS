@@ -1,7 +1,10 @@
 #include <stdint.h>
 #define MODBUS_REGISTER_SIZE 100
-extern SemaphoreHandle_t xRegMutex;
-extern uint16_t tab_reg[];
+extern SemaphoreHandle_t xPeripheralMutex;
+extern uint16_t peripherals[];
+
+int readReg(int regNumber);
+void writeReg(int regNumber, int val);
 
 /* BLOCK STARTS */
 #define _GENERAL 0
