@@ -1,10 +1,7 @@
 #include <stdint.h>
-#define EEPROM_REGISTER_SIZE 50
+#define EEPROM_REGISTER_SIZE 100
 extern SemaphoreHandle_t xEEPROMMutex;
-extern uint16_t eeprom[];
-
-int readReg(int regNumber);
-void writeReg(int regNumber, int val);
+extern uint16_t modbus_eeprom[];
 
 /* BLOCK STARTS */
 #define _GENERAL 0

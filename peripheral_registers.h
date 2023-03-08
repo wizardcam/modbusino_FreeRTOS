@@ -1,10 +1,11 @@
 #include <stdint.h>
-#define MODBUS_REGISTER_SIZE 100
+#define PERIPHERALS_REGISTER_SIZE 1000
 extern SemaphoreHandle_t xPeripheralMutex;
-extern uint16_t peripherals[];
+extern uint16_t modbus_peripherals[];
 
-int readReg(int regNumber);
-void writeReg(int regNumber, int val);
+
+int readPeripheralReg(int regNumber);
+void writePeripheralReg(int regNumber, int val);
 
 /* BLOCK STARTS */
 #define _GENERAL 0
@@ -73,3 +74,6 @@ void writeReg(int regNumber, int val);
 #define _ROBOT_END_5 (_ROBOT + 11)
 #define _ROBOT_END_6 (_ROBOT + 12)
 #define _ROBOT_END_7 (_ROBOT + 13)
+
+
+#define _ERROR 999

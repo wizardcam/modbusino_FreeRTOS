@@ -17,6 +17,8 @@
 #include <pins_arduino.h>
 #endif
 #include "Modbusino_FreeRTOS.h"
+#include "eeprom_registers.h"
+#include "lfs_registers.h"
 #include "peripheral_registers.h"
 
 #define delay(ms) vTaskDelay(ms)
@@ -35,11 +37,21 @@ segfault for longer ADU */
 #define _FC_READ_HOLDING_REGISTERS 0x03
 #define _FC_WRITE_MULTIPLE_REGISTERS 0x10
 
-#define _MIN_REG_NUMBER 7
+#define _SLAVE_MAX_N 3
+#define _PERIPHERAL_SLAVE 1
+#define _EEPROM_SLAVE 2
+#define _LFS_SLAVE 3
+
+uint16_t modbus_peripherals[PERIPHERALS_REGISTER_SIZE];
+uint16_t modbus_lfs[LFS_REGISTER_SIZE];
+uint16_t modbus_eeprom[EEPROM_REGISTER_SIZE];
 
 enum { _STEP_FUNCTION = 0x01, _STEP_META, _STEP_DATA };
 
-uint16_t req_counter = 0;
+uint16_t req_counter;
+uint16_t lfs_req_counter;
+uint16_t peripherals_req_counter;
+uint16_t eeprom_req_counter;
 
 static uint16_t crc16(uint8_t *req, uint8_t req_length)
 {
@@ -135,7 +147,7 @@ static void flush(void)
     }
 }
 
-static int receive(uint8_t *req, uint8_t _slave)
+static int receive(uint8_t *req)
 {
     uint8_t i;
     uint8_t length_to_read;
@@ -176,7 +188,7 @@ static int receive(uint8_t *req, uint8_t _slave)
         length_to_read--;
 
         if (length_to_read == 0) {
-            if (req[_MODBUS_RTU_SLAVE] != _slave
+            if (req[_MODBUS_RTU_SLAVE] > _SLAVE_MAX_N
                 && req[_MODBUS_RTU_SLAVE != MODBUS_BROADCAST_ADDRESS]) {
                 flush();
                 return -1 - MODBUS_INFORMATIVE_NOT_FOR_US;
@@ -193,12 +205,12 @@ static int receive(uint8_t *req, uint8_t _slave)
                 } else {
                     /* Wait a moment to receive the remaining garbage */
                     flush();
-                    if (req[_MODBUS_RTU_SLAVE] == _slave
+                    if (req[_MODBUS_RTU_SLAVE] <= _SLAVE_MAX_N
                         || req[_MODBUS_RTU_SLAVE] == MODBUS_BROADCAST_ADDRESS) {
                         /* It's for me so send an exception (reuse req) */
                         uint8_t rsp_length = response_exception(
-                            _slave, function, MODBUS_EXCEPTION_ILLEGAL_FUNCTION,
-                            req);
+                            _SLAVE_MAX_N, function,
+                            MODBUS_EXCEPTION_ILLEGAL_FUNCTION, req);
                         send_msg(req, rsp_length);
                         return -1 - MODBUS_EXCEPTION_ILLEGAL_FUNCTION;
                     }
@@ -216,11 +228,11 @@ static int receive(uint8_t *req, uint8_t _slave)
                 if ((req_index + length_to_read)
                     > _MODBUSINO_RTU_MAX_ADU_LENGTH) {
                     flush();
-                    if (req[_MODBUS_RTU_SLAVE] == _slave
+                    if (req[_MODBUS_RTU_SLAVE] <= _SLAVE_MAX_N
                         || req[_MODBUS_RTU_SLAVE] == MODBUS_BROADCAST_ADDRESS) {
                         /* It's for me so send an exception (reuse req) */
                         uint8_t rsp_length = response_exception(
-                            _slave, function,
+                            _SLAVE_MAX_N, function,
                             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE, req);
                         send_msg(req, rsp_length);
                         return -1 - MODBUS_EXCEPTION_ILLEGAL_FUNCTION;
@@ -238,9 +250,10 @@ static int receive(uint8_t *req, uint8_t _slave)
 }
 
 
-static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
-                  uint8_t req_length, uint8_t _slave)
+static void reply(uint8_t *req, uint8_t req_length)
 {
+    uint16_t *tab_reg;
+    uint16_t nb_reg;
     uint8_t slave = req[_MODBUS_RTU_SLAVE];
     uint8_t function = req[_MODBUS_RTU_FUNCTION];
     uint16_t address =
@@ -250,8 +263,25 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
     uint8_t rsp[_MODBUSINO_RTU_MAX_ADU_LENGTH];
     uint8_t rsp_length = 0;
 
-    if (slave != _slave && slave != MODBUS_BROADCAST_ADDRESS) {
+    // Slave out of range
+    if (slave > _SLAVE_MAX_N && slave != MODBUS_BROADCAST_ADDRESS) {
         return;
+    }
+
+    if (slave == _PERIPHERAL_SLAVE) {
+        tab_reg = modbus_peripherals;
+        nb_reg = PERIPHERALS_REGISTER_SIZE;
+        req_counter = peripherals_req_counter += 1;
+    }
+    if (slave == _EEPROM_SLAVE) {
+        tab_reg = modbus_eeprom;
+        nb_reg = EEPROM_REGISTER_SIZE;
+        req_counter = eeprom_req_counter += 1;
+    }
+    if (slave == _LFS_SLAVE) {
+        tab_reg = modbus_lfs;
+        nb_reg = LFS_REGISTER_SIZE;
+        req_counter = lfs_req_counter += 1;
     }
 
     if (address + nb > nb_reg) {
@@ -261,12 +291,12 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
         req_length -= _MODBUS_RTU_CHECKSUM_LENGTH;
 
         uint32_t TimeNow = millis();
-        // Custom modbus info write to first registers.
+        // Custom modbus info registers.
         taskENTER_CRITICAL();
-        tab_reg[_REQ_TIMESTAMP1] = (TimeNow >> 16) & 0x0000FFFF; // HI
+        tab_reg[_REQ_TIMESTAMP1] = (TimeNow >> 16) & 0x0000FFFF; // HIGH
         tab_reg[_REQ_TIMESTAMP2] = TimeNow & 0x0000FFFF;         // LOW
-        tab_reg[_REQ_COUNTER] = req_counter += 1;
-        tab_reg[_SLAVE_ID] = _slave;
+        tab_reg[_REQ_COUNTER] = req_counter;
+        tab_reg[_SLAVE_ID] = slave;
         tab_reg[_MODBUS_FUNCTION] = req[_MODBUS_RTU_FUNCTION];
         tab_reg[_REGISTER_ADRESS] = address;
         tab_reg[_REGISTER_NUMBER] = nb;
@@ -307,26 +337,25 @@ static void reply(uint16_t *tab_reg, uint16_t nb_reg, uint8_t *req,
     send_msg(rsp, rsp_length);
 }
 
-int ModbusinoSlave::loop(uint16_t *tab_reg, uint16_t nb_reg)
+int ModbusinoSlave::loop()
 {
     int rc = 0;
     uint8_t req[_MODBUSINO_RTU_MAX_ADU_LENGTH];
-    if (nb_reg < _MIN_REG_NUMBER) {
-        return -3;
-    }
 
     if (Serial.available()) {
-        rc = receive(req, _slave);
+        rc = receive(req);
         if (rc > 0) {
-            reply(tab_reg, nb_reg, req, rc, _slave);
+            reply(req, rc);
         }
     }
-
-    /* Returns a positive value if successful,
+    if (rc <= 0) {
+        return rc;
+    } else {
+        return req[_MODBUS_RTU_SLAVE];
+    }
+    /* Returns the slave number if successful,
        0 if a slave filtering has occured,
        -1 if an undefined error has occured,
        -2 for MODBUS_EXCEPTION_ILLEGAL_FUNCTION
-       -3 register number to small, minimum _MIN_REG_NUMBER
        etc */
-    return rc;
 }
