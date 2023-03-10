@@ -6,6 +6,7 @@ extern uint16_t modbus_peripherals[];
 
 int readPeripheralReg(int regNumber);
 void writePeripheralReg(int regNumber, int val);
+void writeErrorToRegister(int errorLoc, int errorType);
 
 /* BLOCK STARTS */
 #define _GENERAL 0
@@ -76,4 +77,6 @@ void writePeripheralReg(int regNumber, int val);
 #define _ROBOT_END_7 (_ROBOT + 13)
 
 
-#define _ERROR 999
+#define _ERROR_COUNT 997
+#define _ERROR_LOC 998
+#define _ERROR_TYPE 999
