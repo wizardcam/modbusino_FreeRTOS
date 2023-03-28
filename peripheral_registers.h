@@ -1,8 +1,6 @@
 #include <stdint.h>
 #define PERIPHERALS_REGISTER_SIZE 1000
-extern SemaphoreHandle_t xPeripheralMutex;
 extern uint16_t modbus_peripherals[];
-
 
 int readPeripheralReg(int regNumber);
 void writePeripheralReg(int regNumber, int val);
@@ -76,7 +74,8 @@ void writeErrorToRegister(int errorLoc, int errorType);
 #define _ROBOT_END_6 (_ROBOT + 12)
 #define _ROBOT_END_7 (_ROBOT + 13)
 
-
+#define _WARN_BLINK 996
+#define _ERROR_BLINK 996
 #define _ERROR_COUNT 997
 #define _ERROR_LOC 998
 #define _ERROR_TYPE 999
