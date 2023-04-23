@@ -249,7 +249,6 @@ static int receive(uint8_t *req)
     return check_integrity(req, req_index);
 }
 
-
 static void reply(uint8_t *req, uint8_t req_length)
 {
     uint16_t *tab_reg;
@@ -320,6 +319,9 @@ static void reply(uint8_t *req, uint8_t req_length)
         } else {
             uint16_t i, j;
 
+            if (slave == _EEPROM_SLAVE) {
+                address = _EEPROM_DATA_START;
+            }
             taskENTER_CRITICAL();
             for (i = address, j = 6; i < address + nb; i++, j += 2) {
                 /* 6 and 7 = first value */
@@ -357,5 +359,6 @@ int ModbusinoSlave::loop()
        0 if a slave filtering has occured,
        -1 if an undefined error has occured,
        -2 for MODBUS_EXCEPTION_ILLEGAL_FUNCTION
-       etc */
+       etc
+    */
 }
