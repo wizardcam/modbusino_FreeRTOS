@@ -12,12 +12,13 @@
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
+#include <string.h>
 #else
 #include "WProgram.h"
 #include <pins_arduino.h>
 #endif
 #include "Modbusino_FreeRTOS.h"
-#include "eeprom_registers.h"
+#include "eeprom_buffer.h"
 #include "lfs_registers.h"
 #include "peripheral_registers.h"
 
@@ -42,16 +43,15 @@ segfault for longer ADU */
 #define _EEPROM_SLAVE 2
 #define _LFS_SLAVE 3
 
-uint16_t modbus_peripherals[PERIPHERALS_REGISTER_SIZE];
-uint16_t modbus_lfs[LFS_REGISTER_SIZE];
-uint16_t modbus_eeprom[EEPROM_REGISTER_SIZE];
+uint16_t modbus_peripherals[PERIPHERALS_REGISTER_SIZE] = {0};
+uint16_t modbus_lfs[LFS_REGISTER_SIZE] = {0};
 
 enum { _STEP_FUNCTION = 0x01, _STEP_META, _STEP_DATA };
 
-uint16_t req_counter;
-uint16_t lfs_req_counter;
-uint16_t peripherals_req_counter;
-uint16_t eeprom_req_counter;
+static uint16_t req_counter;
+static uint16_t lfs_req_counter;
+static uint16_t peripherals_req_counter;
+static uint16_t eeprom_req_counter;
 
 static uint16_t crc16(uint8_t *req, uint8_t req_length)
 {
@@ -273,8 +273,8 @@ static void reply(uint8_t *req, uint8_t req_length)
         req_counter = peripherals_req_counter += 1;
     }
     if (slave == _EEPROM_SLAVE) {
-        tab_reg = modbus_eeprom;
-        nb_reg = EEPROM_REGISTER_SIZE;
+        tab_reg = eeprom.getBuffer16();
+        nb_reg = EEPROM_SIZE;
         req_counter = eeprom_req_counter += 1;
     }
     if (slave == _LFS_SLAVE) {
@@ -320,7 +320,7 @@ static void reply(uint8_t *req, uint8_t req_length)
             uint16_t i, j;
 
             if (slave == _EEPROM_SLAVE) {
-                address = _EEPROM_DATA_START;
+                address = EEPROM_DATA_START + address;
             }
             taskENTER_CRITICAL();
             for (i = address, j = 6; i < address + nb; i++, j += 2) {

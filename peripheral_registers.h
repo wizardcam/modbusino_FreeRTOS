@@ -42,11 +42,11 @@ void writeErrorToRegister(int errorLoc, int errorType);
 #define _LASER_TOTAL_ACTIVATIONS (_LASER + 1) // 32bit
 #define _LASER_TOTAL_RETRYS (_LASER + 3)      // 32bit
 #define _LASER_CURRENT_RETRYS (_LASER + 5)
-#define _LASER_TOTAL_UPTIME1 (_LASER + 6)   // 32bit
-#define _LASER_TOTAL_UPTIME2 (_LASER + 8)   // 32bit
-#define _LASER_TOTAL_UPTIME3 (_LASER + 10)  // 32bit
-#define _LASER_TOTAL_UPTIME4 (_LASER + 12)  // 32bit
-#define _LASER_CURRENT_UPTIME (_LASER + 14) // 32bit
+#define _LASER_TOTAL_UPTIME1 (_LASER + 6)     // 32bit
+#define _LASER_TOTAL_UPTIME2 (_LASER + 8)     // 32bit
+#define _LASER_TOTAL_UPTIME3 (_LASER + 10)    // 32bit
+#define _LASER_TOTAL_UPTIME4 (_LASER + 12)    // 32bit
+#define _LASER_CURRENT_UPTIME (_LASER + 14)   // 32bit
 #define _LASER_TIMESTAMP (_LASER + 16)
 #define _LASER_MODE (_LASER + 18)
 #define _LASER_INTENSITY (_LASER + 19)
