@@ -2,7 +2,6 @@
 #define EEPROM_BUFFER_H
 
 #include "Adafruit_EEPROM_I2C.h"
-#include "eeprom_buffer.h"
 #include <cstdint>
 
 #define EEPROM_SIZE 1024
